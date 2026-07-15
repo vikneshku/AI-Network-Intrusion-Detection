@@ -53,30 +53,42 @@ def load_and_clean_data(directory_path):
     return X, y_encoded, label_encoder
 
 def scale_and_split(X, y):
-    # Store the core column names safely before converting to array representations
-    feature_names = X.columns.tolist()
+    # 1. Safely extract feature names if it's a DataFrame, otherwise handle array fallback
+    if hasattr(X, 'columns'):
+        feature_names = X.columns.tolist()
+        X_arr = X.values
+    else:
+        feature_names = [f"Feature_{i}" for i in range(X.shape[1])]
+        X_arr = np.asarray(X)
+        
+    y_arr = np.asarray(y)
     
-    # Re-combine safely using the native DataFrame indices to balance data groups
-    df_temp = X.copy()
-    df_temp['_label_target_'] = y
+    # 2. Complete a pure NumPy Stratified Downsampling to prevent majority class guessing
+    unique_classes, counts = np.unique(y_arr, return_counts=True)
+    min_size = counts.min()
+    max_samples_per_class = max(int(min_size * 3), 500)
     
-    class_counts = df_temp['_label_target_'].value_counts()
-    min_size = class_counts.min()
+    sampled_indices = []
+    rng = np.random.default_rng(42)
     
-    # Cap the overwhelming normal categories so models show different validation trends
-    balanced_df = df_temp.groupby('_label_target_').apply(
-        lambda x: x.sample(n=min(len(x), max(min_size * 3, 500)), random_state=42)
-    ).reset_index(drop=True)
+    for cls in unique_classes:
+        cls_indices = np.where(y_arr == cls)[0]
+        if len(cls_indices) > max_samples_per_class:
+            chosen = rng.choice(cls_indices, size=max_samples_per_class, replace=False)
+            sampled_indices.extend(chosen)
+        else:
+            sampled_indices.extend(cls_indices)
+            
+    # Re-sample arrays based on balanced indexes
+    X_balanced = X_arr[sampled_indices]
+    y_balanced = y_arr[sampled_indices]
     
-    # Extract structural arrays back safely using the precise matching target string
-    X_balanced = balanced_df.drop(columns=['_label_target_']).values
-    y_balanced = balanced_df['_label_target_'].values
-    
-    # Split dataset into training (80%) and testing (20%)
+    # 3. Split dataset into training (80%) and testing (20%) tracks
     X_train, X_test, y_train, y_test = train_test_split(
         X_balanced, y_balanced, test_size=0.2, random_state=42, stratify=y_balanced
     )
     
+    # 4. Standardize scaling normalization properties
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
