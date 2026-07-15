@@ -159,11 +159,23 @@ else:
             st.markdown(f"Evaluating how the best model (**{best_model_name}**) processes incoming packets:")
             
             best_model_obj = models[best_model_name]
+            importances = None
+            
+            # Case A: Model uses tree-based importances (Random Forest / Decision Tree)
             if hasattr(best_model_obj, 'feature_importances_'):
                 importances = best_model_obj.feature_importances_
+                
+            # Case B: Model uses linear coefficients (Logistic Regression)
+            elif hasattr(best_model_obj, 'coef_'):
+                # For multi-class logistic regression, we take the average absolute magnitude across all classes
+                importances = np.mean(np.abs(best_model_obj.coef_), axis=0)
+            
+            if importances is not None:
                 feat_imp = pd.Series(importances, index=selected_features).sort_values(ascending=False)
                 
+                # Render visual analytics dashboard components
                 st.bar_chart(feat_imp)
-                st.dataframe(pd.DataFrame({"Feature Importance Score": feat_imp}))
+                st.subheader("📋 Feature Importance Breakdown Scores Table")
+                st.dataframe(pd.DataFrame({"Importance Score": feat_imp}))
             else:
                 st.warning(f"Feature importance metric extraction is not supported for {best_model_name}.")
