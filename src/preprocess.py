@@ -17,7 +17,16 @@ def load_and_clean_data(directory_path):
     list_of_dfs = []
     for file in csv_files:
         print(f"Reading: {os.path.basename(file)}")
-        df_temp = pd.read_csv(file, nrows=20000, encoding='latin-1')
+        
+        # 1. Read a larger initial chunk to make sure we hit hidden attack blocks
+        df_temp = pd.read_csv(file, nrows=100000, encoding='latin-1')
+        
+        # 2. Shuffle rows completely so target attacks and BENIGN rows mix together
+        df_temp = df_temp.sample(frac=1, random_state=42).reset_index(drop=True)
+        
+        # 3. Restrict to a 20,000 row snapshot to keep it lightweight on the cloud container
+        df_temp = df_temp.head(20000)
+        
         list_of_dfs.append(df_temp)
         
     df = pd.concat(list_of_dfs, ignore_index=True)
