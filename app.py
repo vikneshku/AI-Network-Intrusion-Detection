@@ -156,7 +156,7 @@ else:
             
         with tab3:
             st.header("Network Traffic Feature Importances")
-            st.markdown(f"Evaluating how the best model (**{best_model_name}**) processes incoming packets:")
+            st.markdown(f"Evaluating feature importance using the dynamically selected **{k_features}** metrics:")
             
             best_model_obj = models[best_model_name]
             importances = None
@@ -167,15 +167,20 @@ else:
                 
             # Case B: Model uses linear coefficients (Logistic Regression)
             elif hasattr(best_model_obj, 'coef_'):
-                # For multi-class logistic regression, we take the average absolute magnitude across all classes
-                importances = np.mean(np.abs(best_model_obj.coef_), axis=0)
+                if best_model_obj.coef_.ndim > 1:
+                    importances = np.mean(np.abs(best_model_obj.coef_), axis=0)
+                else:
+                    importances = np.abs(best_model_obj.coef_)
             
             if importances is not None:
+                # Ensure array lengths match up with selected features strictly
+                importances = importances[:len(selected_features)]
+                
                 feat_imp = pd.Series(importances, index=selected_features).sort_values(ascending=False)
                 
-                # Render visual analytics dashboard components
+                # Render visual analytics dashboard components cleanly
                 st.bar_chart(feat_imp)
                 st.subheader("📋 Feature Importance Breakdown Scores Table")
                 st.dataframe(pd.DataFrame({"Importance Score": feat_imp}))
             else:
-                st.warning(f"Feature importance metric extraction is not supported for {best_model_name}.")
+                st.warning(f"Feature importance metric extraction could not be processed for {best_model_name}.")
