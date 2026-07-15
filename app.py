@@ -22,7 +22,11 @@ st.set_page_config(
 st.title("🛡️ AI-Powered Network Intrusion Detection System")
 st.markdown("---")
 
-dataset_folder = "data/TrafficLabelling"
+# Automatically switch folders if running on the cloud vs local computer
+if os.path.exists("data/TrafficLabelling"):
+    dataset_folder = "data/TrafficLabelling"
+else:
+    dataset_folder = "data/sample"
 
 if not os.path.exists(dataset_folder):
     st.error(f"❌ Error: Could not find dataset folder at `{dataset_folder}`. Please ensure your CSV files are placed correctly.")
